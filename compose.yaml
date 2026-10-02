@@ -8,14 +8,23 @@ services:
     restart: unless-stopped
     command: gateway run
     ports:
-      - "8642:8642"   # gateway API
-      - "9119:9119"   # dashboard (only reached when HERMES_DASHBOARD=1)
+      - 8642:8642   # gateway API
+      - 9119:9119   # dashboard (only reached when HERMES_DASHBOARD=1)
     volumes:
-      - ~/.hermes:/opt/data
+      - ./.hermes:/opt/data
       - /run/user/${HERMES_UID}/pulse:/run/user/${HERMES_UID}/pulse
       # no-tmp: ok — path inside the container
       - ~/.config/pulse/cookie:/tmp/pulse-cookie:ro
       - ./asound.conf:/etc/asound.conf:ro
+      - ./overlay:/app/overlay:ro
+      - ./scripts:/app/scripts:ro
+
+      # warning:this will give your agents full access to docker - slightly unsafe!
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Mount the workspace directory for agent access
+      # warning: if this project sits inside WORKSPACE, the agent can effectively provision and mutate itself.
+      - "${WORKSPACE:-~/workspace}:/workspace:rw"
+
     environment:
       - HERMES_DASHBOARD=1
       - HERMES_UID=${HERMES_UID}
@@ -29,3 +38,6 @@ services:
         limits:
           memory: 4G
           cpus: "2.0"
+    healthcheck:
+      test: ["bash", "/app/scripts/apply-overlay.sh"]
+      retries: 0

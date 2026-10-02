@@ -1,8 +1,5 @@
 # Ignore everything in .hermes...
 .hermes/*
-
-# ...except profiles, skills, and hooks
-!.hermes/profiles/
-!.hermes/skills/
-!.hermes/hooks/
-!.hermes/plugins/
+# lets not leak any secrets =)...
+.env
+**/.env

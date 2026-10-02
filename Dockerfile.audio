@@ -4,3 +4,13 @@ USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libasound2-plugins \
     && rm -rf /var/lib/apt/lists/*
+
+    # Dependency truth belongs to the plugin manager: no version strings here, so nothing goes stale.
+    # NOTE: plugins install does NOT put deps in the venv — on this install kind they land in
+    # <install-root>/lazy-packages (= /opt/data), which compose replaces with the host bind-mount at
+    # runtime, so the container would never see them. The venv lives inside the image, not under the
+    # mount, so copy the installer's own resolved set there. Verified 2026-10-02 in a throwaway
+    # container: install writes /opt/data/lazy-packages/{hindsight_embed,hindsight_client,
+    # hindsight_client_api}-0.10.2 (exit 0, no TTY); the copy then imports OK from the venv.
+    RUN hermes plugins install hindsight --enable \
+        && cp -a /opt/data/lazy-packages/. /opt/hermes/.venv/lib/python3.13/site-packages/

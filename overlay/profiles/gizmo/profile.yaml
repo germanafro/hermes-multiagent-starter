@@ -1,0 +1,5 @@
+description: 'Coding specialist: implements features, debugs, writes and runs tests,
+  reviews diffs. Hands-on engineer; other bots hand off code work to it.'
+description_auto: false
+ui_meta:
+  hermes-bots: {}
