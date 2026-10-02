@@ -99,3 +99,38 @@ hermes chat -q "Reply with exactly: ok" --oneshot     # note: -q/--query, not -Q
 `/health` returning `healthy` proves only that the process is up — it says nothing about
 whether the LLM behind it is reachable or correctly addressed, which is exactly the
 failure mode above.
+
+## 3. One bank, several agents: attribution is write-side only
+
+The fleet shares a single bank (`bank_id: hermes` for every profile), so every agent
+reads what every other agent learned, and consolidation works across all of them. That
+is deliberate: cross-agent knowledge is the point. What keeps it from turning into
+undifferentiated sludge is attribution, and attribution here is **asymmetric**:
+
+* **Stored:** the plugin writes `agent_identity` (in `_METADATA_ATTRS`, always on) plus
+  `platform`/`session_id`/`turn_index` on every retained memory, and `retain_source`
+  adds an explicit `source` label (opt-in; the reconciler pins it to the profile name).
+  The recall API returns all of it per result.
+* **Rendered:** the agent sees `- {text}` - `_do_recall` joins `f"- {r.text}"` and the
+  recall tool joins `f"{i}. {r.text}"`. No metadata, no author. So at answer time a
+  memory written by another agent is indistinguishable from the agent's own belief.
+
+Two consequences worth knowing before trusting a shared bank:
+
+1. A wrong fact one agent retains becomes available to all of them with the same
+   apparent authority, and nothing in the context warns the reader it came from
+   elsewhere. Audit (bank export, or the recall API) is the only place the author is
+   visible.
+2. Consolidation is lossy for metadata. Observed on this bank: one returned memory
+   carried `{"platform": "cli", "agent_identity": "marvin"}` while a sibling returned
+   from the same bank carried `{}`. Derived observations do not reliably inherit the
+   provenance of the facts they were built from.
+
+If dilution or cross-agent bleed ever shows up, the two supported knobs are
+`recall_tags`/`recall_tags_match` (shared store, filtered attention) and
+`bank_id_template: "hermes-{profile}"` (per-agent banks; placeholders `{profile}`,
+`{workspace}`, `{platform}`, `{user}`, `{session}`). Note `bank_mission` and
+`bank_retain_mission` are parse-only in the plugin's config schema - they are read and
+never sent, so a shared bank's mission is not shappable from profile config on this
+version.
+
